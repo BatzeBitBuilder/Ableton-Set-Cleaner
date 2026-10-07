@@ -4,7 +4,7 @@ Analysiert ein Ableton Live Set (`.als`) und bereinigt den zugehörigen Projekto
 
 ## Web-App
 
-**https://github.com/BatzeBitBuilder/Ableton-Set-Cleaner**
+**[https://github.com/BatzeBitBuilder/Ableton-Set-Cleaner](https://batzebitbuilder.github.io/Ableton-Set-Cleaner/)**
 
 Läuft komplett lokal im Browser, es werden keine Dateien hochgeladen. Für den Ordnerzugriff wird Chrome oder Edge empfohlen.
 
