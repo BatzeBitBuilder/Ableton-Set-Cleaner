@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ableton Set Cleaner</title>
+<style>
+:root{--bg:#f5f5f3;--card:#fff;--fg:#1d1d1f;--mut:#6b6b70;--line:#e3e3e0;--acc:#ff7a00;--acc2:#1f8a5b;--warn:#c0392b;--bar:#c9c9c4}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1e1e21;--fg:#ececee;--mut:#9a9aa0;--line:#2e2e33;--acc:#ff8c1a;--acc2:#3dbb83;--warn:#ff6b5b;--bar:#4a4a50}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}h1{font-size:20px;margin:0 0 16px}h1 span{color:var(--acc)}
+h2{font-size:15px;margin:0 0 10px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],select{flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+button{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:inherit;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}button.danger{border-color:var(--warn);color:var(--warn)}
+button:disabled{opacity:.5;cursor:default}.mut{color:var(--mut)}.hide{display:none!important}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}.tile b{display:block;font-size:20px;margin-top:2px}
+.tile.big{grid-column:span 2}.ok{color:var(--acc2)}.bad{color:var(--warn)}
+table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--mut);font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+td.bar{width:30%;min-width:120px}.b{display:block;height:6px;border-radius:3px;background:var(--bar);margin:2px 0}.b.a{background:var(--acc2)}
+.wrap{overflow-x:auto}.legend{font-size:12px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:6px;border-radius:3px;margin:0 4px 1px 10px}
+details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-weight:600}
+ul{margin:6px 0 0;padding-left:18px;max-height:260px;overflow:auto;font:12px/1.6 Consolas,monospace}ul li span{color:var(--mut)}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;white-space:pre-wrap;font:12px/1.5 Consolas,monospace;margin:0 0 12px}
+.pbar{height:14px;border-radius:7px;background:var(--line);overflow:hidden}.pbar span{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+#pFile{font:12px Consolas,monospace;margin:6px 0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.err{color:var(--warn);margin-top:8px}.status{margin-top:8px;color:var(--mut)}label{display:flex;gap:6px;align-items:center}
+.note{font-size:12px;color:var(--mut);margin:8px 0 0}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}header h1{margin:0}
+.by{font-size:11px;color:var(--mut);margin:2px 0 0}
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.lang button{border:0;border-radius:0;padding:4px 10px;font-size:12px}
+.lang button.on{background:var(--acc);color:#fff;font-weight:600}
+.hdr{display:flex;gap:8px;align-items:center}.hdr>button{padding:4px 10px;font-size:12px}
+#help{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+#help>div{position:relative;width:min(1000px,100%);height:min(90vh,900px);background:var(--bg);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+#help iframe{width:100%;height:100%;border:0;display:block}#help .x{position:absolute;top:8px;right:8px;padding:2px 9px;font-size:16px;line-height:1.2}
+@media (max-width:560px){.tile.big{grid-column:span 1}}
+</style></head><body><main>
+<header><div><h1>Ableton <span>Set Cleaner</span></h1><p class="by" data-i18n="by"></p></div>
+  <div class="hdr"><button id="bHelp" data-i18n="manual"></button>
+  <div class="lang" role="group" aria-label="Language"><button data-lang="de">Deutsch</button><button data-lang="en">English</button></div></div></header>
+<div id="help" class="hide" role="dialog" aria-modal="true"><div><iframe id="helpFrame" title="Handbuch"></iframe><button class="x" id="bHelpX" aria-label="Close">×</button></div></div>
+
+<div class="card">
+  <h2 data-i18n="projFolder"></h2>
+  <div class="row">
+    <button class="pri" id="bPick" data-i18n="pick"></button>
+    <input type="file" id="fallback" webkitdirectory class="hide">
+    <span class="mut" id="rootName"></span>
+  </div>
+  <div class="row hide" id="alsRow" style="margin-top:10px"><select id="alsSel"></select><button id="bAnalyze" data-i18n="analyze"></button></div>
+  <div id="status" class="status"></div><div id="err" class="err"></div>
+  <p class="note" id="fsNote"></p>
+</div>
+
+<div id="res" class="hide">
+  <div class="tiles" id="tiles"></div>
+  <div class="card"><h2 data-i18n-html="sumTitle"></h2><div class="wrap" id="sum"></div></div>
+  <div class="card"><h2>Details</h2><div id="lists"></div></div>
+  <div class="card" id="actions"><h2 data-i18n="clean"></h2>
+    <div class="row" style="margin-bottom:10px"><input type="text" id="name" data-i18n-ph="namePh"></div>
+    <div class="row"><button class="pri" id="bCopy" data-i18n="copyBtn"></button>
+    <button class="danger" id="bInplace" data-i18n="inplaceBtn"></button></div>
+    <p class="note" data-i18n-html="cleanNote"></p>
+  </div>
+  <div class="card hide" id="prog"><h2 id="pPhase"></h2>
+    <div class="pbar"><span id="pFill"></span></div>
+    <div class="row" style="justify-content:space-between;margin-top:6px"><b id="pPct">0 %</b><span class="mut" id="pInfo"></span></div>
+    <div class="mut" id="pFile"></div><button class="danger" id="bCancel" data-i18n="cancel"></button></div>
+  <div class="card hide" id="out"><h2 data-i18n="result"></h2><pre id="log"></pre><div class="wrap" id="outSum"></div>
+    <div class="row" style="margin-top:12px"><button class="pri" id="bReset" data-i18n="reset"></button></div></div>
+</div>
+</main>
+<script type="text/plain" id="helpSrc"><!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ableton Set Cleaner – Handbuch</title>
+<style>
+:root{--bg:#f5f5f3;--card:#fff;--fg:#1d1d1f;--mut:#6b6b70;--line:#e3e3e0;--acc:#ff7a00;--acc2:#1f8a5b;--warn:#c0392b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1e1e21;--fg:#ececee;--mut:#9a9aa0;--line:#2e2e33;--acc:#ff8c1a;--acc2:#3dbb83;--warn:#ff6b5b}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.6 system-ui,Segoe UI,sans-serif}
+.wrap{display:grid;grid-template-columns:210px 1fr;gap:20px;max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+nav{position:sticky;top:16px;align-self:start;font-size:13px}nav a{display:block;padding:4px 8px;border-radius:6px;color:var(--mut);text-decoration:none}
+nav a:hover,nav a.on{background:var(--card);color:var(--fg)}nav a.on{box-shadow:inset 3px 0 0 var(--acc)}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}h1{font-size:20px;margin:0}h1 span{color:var(--acc)}
+.by{font-size:11px;color:var(--mut);margin:2px 0 0}
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.lang button{border:0;padding:4px 10px;font:12px system-ui,sans-serif;background:var(--card);color:var(--fg);cursor:pointer}
+.lang button.on{background:var(--acc);color:#fff;font-weight:600}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;scroll-margin-top:12px}
+h2{font-size:16px;margin:0 0 8px}h3{font-size:14px;margin:14px 0 4px}p{margin:6px 0}ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0}
+.mut{color:var(--mut)}code,kbd{font:12px Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.btn{display:inline-block;font-size:12px;padding:1px 8px;border-radius:5px;border:1px solid var(--line);white-space:nowrap}.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.danger{border-color:var(--warn);color:var(--warn)}
+.tip,.warn{border-left:3px solid var(--acc2);background:var(--bg);padding:8px 12px;border-radius:0 6px 6px 0;margin:10px 0}.warn{border-color:var(--warn)}
+table{width:100%;border-collapse:collapse;margin:6px 0}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--mut)}
+details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-weight:600}
+@media (max-width:700px){.wrap{grid-template-columns:1fr}nav{position:static;display:flex;flex-wrap:wrap;gap:4px}nav a.on{box-shadow:none}}
+</style></head><body>
+<div class="wrap">
+<nav id="toc"></nav>
+<main>
+<header><div><h1>Ableton <span>Set Cleaner</span> · <span data-t="title" style="color:inherit"></span></h1><p class="by" data-t="by"></p></div>
+  <div class="lang" role="group" aria-label="Language"><button data-lang="de">Deutsch</button><button data-lang="en">English</button></div></header>
+<div id="content"></div>
+</main></div>
+<script>
+"use strict";
+const B=(c,t)=>`<span class="btn ${c}">${t}</span>`;
+const C={
+de:{title:"Handbuch",by:"Entwickelt von Thorsten Banning",s:[
+["intro","Überblick",`<p>Der <b>Ableton Set Cleaner</b> findet heraus, welche Dateien in einem Ableton-Projektordner von einem Live Set (<code>.als</code>) tatsächlich verwendet werden – und entfernt den Rest. So werden Projekte kleiner, übersichtlicher und leichter zu archivieren oder weiterzugeben.</p>
+<ul><li>Läuft komplett lokal im Browser – es werden <b>keine Dateien hochgeladen</b>.</li><li>Unterstützt Live Sets von Live 9 bis Live 12.</li><li>Es wird <b>nie etwas gelöscht</b>: entweder entsteht eine bereinigte Kopie, oder ungenutzte Dateien werden in einen Quarantäne-Ordner verschoben.</li></ul>`],
+["req","Voraussetzungen",`<table><tr><th>Browser</th><th>Analyse</th><th>Bereinigen</th></tr>
+<tr><td>Chrome, Edge (Desktop)</td><td>✔</td><td>✔</td></tr><tr><td>Firefox, Safari</td><td>✔</td><td>– (nur Analyse)</td></tr></table>
+<p>Zum Bereinigen wird die <i>File System Access API</i> benötigt, die nur Chromium-Browser bieten. Der Browser fragt beim Bereinigen nach Schreibzugriff – dieser muss erlaubt werden.</p>
+<div class="tip">Ableton Live sollte das Set während der Bereinigung <b>nicht geöffnet</b> haben.</div>`],
+["start","1. Projektordner wählen",`<ol><li>${B("pri","Projektordner wählen…")} klicken.</li><li>Den Ordner <b>„… Project“</b> auswählen, in dem die <code>.als</code>-Datei liegt (nicht einen Unterordner wie <code>Samples</code>).</li><li>Der Ordner wird eingelesen; die Anzahl der Dateien erscheint neben dem Button.</li></ol>
+<p>Enthält der Ordner mehrere Sets, erscheint eine Auswahlliste. Sets im Ordner <code>Backup</code> werden ignoriert. Mit ${B("","Analysieren")} oder durch Wechsel in der Liste wird das gewählte Set neu analysiert.</p>`],
+["analysis","2. Analyse lesen",`<h3>Kacheln</h3><table>
+<tr><td><b>Projektordner</b></td><td>Größe vorher → nachher und die erwartete Ersparnis.</td></tr>
+<tr><td><b>Im Projekt verwendet</b></td><td>Dateien im Projektordner, die das Set referenziert.</td></tr>
+<tr><td><b>Ungenutzt</b></td><td>Dateien, die das Set nicht benötigt – Kandidaten zum Entfernen.</td></tr>
+<tr><td><b>Extern verwendet</b></td><td>Referenzen auf Dateien außerhalb des Projektordners (z.B. Library). Der Browser kann sie nicht prüfen.</td></tr>
+<tr><td><b>Fehlend</b></td><td>Referenzierte Dateien, die nicht gefunden wurden. Sollte <span style="color:var(--acc2)">0</span> sein.</td></tr></table>
+<h3>Dateitypen-Tabelle</h3><p>Zeigt je Dateiendung Anzahl und Größe vorher/nachher (Prognose). Der graue Balken steht für „vorher“, der grüne für „nachher“.</p>
+<h3>Details</h3><p>Aufklappbare Listen aller verwendeten, ungenutzten, externen und fehlenden Dateien mit Größe – ideal zum Gegenprüfen vor dem Bereinigen.</p>`],
+["clean","3. Bereinigen",`<h3>${B("pri","Bereinigtes neues Projekt erstellen…")} <span class="mut">(empfohlen)</span></h3>
+<ol><li>Namen für das neue Set eintragen (Vorschlag: <code>&lt;Set&gt; clean</code>).</li><li>Button klicken und einen Zielordner <b>außerhalb</b> des Projekts wählen.</li><li>Dort entsteht <code>&lt;Name&gt; Project</code> mit allen benötigten Dateien, dem Ordner <code>Ableton Project Info</code> und dem neuen Set. Alle Pfade im Set werden projekt-relativ gesetzt.</li></ol>
+<p>Das Original bleibt <b>unverändert</b>. Jede Datei wird nach dem Kopieren auf korrekte Größe geprüft.</p>
+<h3>${B("danger","Im Ordner aufräumen (Quarantäne)…")}</h3>
+<ol><li>Button klicken und einen Ordner <b>außerhalb</b> des Projekts wählen (z.B. den übergeordneten Ordner).</li><li>Nach Bestätigung werden alle ungenutzten Dateien nach <code>&lt;Projekt&gt; _unused_JJJJMMTT-hhmmss</code> verschoben – mit gleicher Ordnerstruktur.</li><li>Leer gewordene Ordner im Projekt werden entfernt, danach wird neu analysiert.</li></ol>
+<div class="tip">Wenn alles funktioniert, kann der Quarantäne-Ordner später von Hand gelöscht werden. Bis dahin lässt sich alles zurückkopieren.</div>`],
+["progress","Fortschritt & Abbrechen",`<p>Während des Vorgangs zeigt die Fortschrittsanzeige Prozent, aktuelle Datei, Datenmenge, Geschwindigkeit und Restzeit. Mit ${B("danger","Abbrechen")} wird nach dem aktuellen Block gestoppt:</p>
+<ul><li><b>Neues Projekt:</b> der unvollständige Zielordner kann gelöscht werden, das Original ist unverändert.</li><li><b>Aufräumen:</b> bereits verschobene Dateien liegen im Quarantäne-Ordner – nichts geht verloren.</li></ul>
+<p>Das Ergebnis-Feld fasst den Vorgang zusammen. ${B("pri","Neuen Vorgang starten")} setzt die Oberfläche zurück.</p>`],
+["notes","Was wird erkannt?",`<ul><li>Alle <code>FileRef</code>-Einträge des Sets: Samples, Clips, Presets, Max-Devices, Plug-in-Presets usw.</li>
+<li>Zugehörige Analysedateien (<code>.asd</code>) werden automatisch mitgenommen.</li>
+<li>Referenzen auf ganze Ordner (z.B. Max for Live) übernehmen den kompletten Ordnerinhalt.</li>
+<li>Absolute Pfade werden auf den Projektordner abgebildet, auch wenn das Projekt verschoben wurde.</li>
+<li><code>Ableton Project Info</code> bleibt immer erhalten.</li></ul>
+<div class="warn">Andere Sets im selben Projekt werden <b>nicht</b> berücksichtigt. Dateien, die nur ein anderes Set nutzt, gelten als ungenutzt. Im Zweifel die Variante „Neues Projekt“ verwenden.</div>`],
+["faq","FAQ / Fehlerbehebung",`<details><summary>„Keine .als-Datei gefunden“</summary><p>Es wurde ein Unterordner gewählt. Bitte den eigentlichen Projektordner wählen.</p></details>
+<details><summary>„Live Set konnte nicht gelesen werden“</summary><p>Die Datei ist beschädigt oder kein gültiges Live Set. In Ableton öffnen und erneut speichern.</p></details>
+<details><summary>Fehlende Dateien werden angezeigt</summary><p>Diese fehlten bereits vorher. In Live über <i>Datei → Verwalten → Fehlende Dateien suchen</i> reparieren, dann neu analysieren.</p></details>
+<details><summary>Externe Dateien sollen ins Projekt</summary><p>In Live <i>Datei → Verwalten → Sammeln und speichern</i> ausführen, danach bereinigen.</p></details>
+<details><summary>Buttons zum Bereinigen sind deaktiviert</summary><p>Der Browser unterstützt keinen Schreibzugriff. Chrome oder Edge verwenden.</p></details>
+<details><summary>„Zielordner darf nicht im Projektordner liegen“</summary><p>Ziel- bzw. Quarantäne-Ordner muss außerhalb des Projekts liegen, z.B. eine Ebene höher.</p></details>`]]},
+en:{title:"Manual",by:"Developed by Thorsten Banning",s:[
+["intro","Overview",`<p><b>Ableton Set Cleaner</b> works out which files in an Ableton project folder are actually used by a Live Set (<code>.als</code>) – and removes the rest. Projects become smaller, tidier and easier to archive or share.</p>
+<ul><li>Runs entirely locally in the browser – <b>no files are uploaded</b>.</li><li>Supports Live Sets from Live 9 to Live 12.</li><li><b>Nothing is ever deleted</b>: either a clean copy is created, or unused files are moved to a quarantine folder.</li></ul>`],
+["req","Requirements",`<table><tr><th>Browser</th><th>Analysis</th><th>Clean up</th></tr>
+<tr><td>Chrome, Edge (desktop)</td><td>✔</td><td>✔</td></tr><tr><td>Firefox, Safari</td><td>✔</td><td>– (analysis only)</td></tr></table>
+<p>Cleaning requires the <i>File System Access API</i>, available only in Chromium browsers. The browser asks for write access when cleaning – please allow it.</p>
+<div class="tip">Ableton Live should <b>not have the set open</b> while cleaning.</div>`],
+["start","1. Choose project folder",`<ol><li>Click ${B("pri","Choose project folder…")}.</li><li>Select the <b>“… Project”</b> folder containing the <code>.als</code> file (not a subfolder like <code>Samples</code>).</li><li>The folder is read; the file count appears next to the button.</li></ol>
+<p>If the folder contains several sets, a dropdown appears. Sets in the <code>Backup</code> folder are ignored. ${B("","Analyze")} or changing the selection re-analyzes the chosen set.</p>`],
+["analysis","2. Reading the analysis",`<h3>Tiles</h3><table>
+<tr><td><b>Project folder</b></td><td>Size before → after and the expected savings.</td></tr>
+<tr><td><b>Used in project</b></td><td>Files inside the project folder referenced by the set.</td></tr>
+<tr><td><b>Unused</b></td><td>Files the set does not need – candidates for removal.</td></tr>
+<tr><td><b>Used externally</b></td><td>References to files outside the project folder (e.g. Library). The browser cannot verify them.</td></tr>
+<tr><td><b>Missing</b></td><td>Referenced files that could not be found. Should be <span style="color:var(--acc2)">0</span>.</td></tr></table>
+<h3>File type table</h3><p>Shows count and size per file extension before/after (forecast). Grey bar = before, green bar = after.</p>
+<h3>Details</h3><p>Expandable lists of all used, unused, external and missing files with sizes – ideal for double-checking before cleaning.</p>`],
+["clean","3. Clean up",`<h3>${B("pri","Create clean new project…")} <span class="mut">(recommended)</span></h3>
+<ol><li>Enter a name for the new set (default: <code>&lt;Set&gt; clean</code>).</li><li>Click the button and choose a target folder <b>outside</b> the project.</li><li>A <code>&lt;Name&gt; Project</code> is created there with all required files, the <code>Ableton Project Info</code> folder and the new set. All paths in the set are made project-relative.</li></ol>
+<p>The original stays <b>unchanged</b>. Every file is size-checked after copying.</p>
+<h3>${B("danger","Clean up in place (quarantine)…")}</h3>
+<ol><li>Click the button and choose a folder <b>outside</b> the project (e.g. the parent folder).</li><li>After confirming, all unused files are moved to <code>&lt;Project&gt; _unused_YYYYMMDD-hhmmss</code> – keeping the folder structure.</li><li>Folders left empty are removed, then the project is re-analyzed.</li></ol>
+<div class="tip">Once everything works, you can delete the quarantine folder manually. Until then everything can be copied back.</div>`],
+["progress","Progress & cancel",`<p>The progress bar shows percentage, current file, data volume, speed and remaining time. ${B("danger","Cancel")} stops after the current block:</p>
+<ul><li><b>New project:</b> the incomplete target folder can be deleted; the original is unchanged.</li><li><b>Clean up:</b> files already moved are in the quarantine folder – nothing is lost.</li></ul>
+<p>The result box summarizes the run. ${B("pri","Start new run")} resets the interface.</p>`],
+["notes","What is detected?",`<ul><li>All <code>FileRef</code> entries of the set: samples, clips, presets, Max devices, plug-in presets etc.</li>
+<li>Matching analysis files (<code>.asd</code>) are kept automatically.</li>
+<li>References to whole folders (e.g. Max for Live) keep the entire folder content.</li>
+<li>Absolute paths are mapped onto the project folder, even if the project was moved.</li>
+<li><code>Ableton Project Info</code> is always kept.</li></ul>
+<div class="warn">Other sets in the same project are <b>not</b> considered. Files used only by another set count as unused. When in doubt, use “New project”.</div>`],
+["faq","FAQ / Troubleshooting",`<details><summary>“No .als file found”</summary><p>A subfolder was selected. Please choose the actual project folder.</p></details>
+<details><summary>“Could not read the Live Set”</summary><p>The file is damaged or not a valid Live Set. Open it in Ableton and save it again.</p></details>
+<details><summary>Missing files are shown</summary><p>They were already missing. Fix via <i>File → Manage Files → Locate missing files</i> in Live, then re-analyze.</p></details>
+<details><summary>External files should go into the project</summary><p>Run <i>File → Collect All and Save</i> in Live, then clean up.</p></details>
+<details><summary>Cleanup buttons are disabled</summary><p>The browser has no write access support. Use Chrome or Edge.</p></details>
+<details><summary>“Target folder must not be inside the project folder”</summary><p>The target/quarantine folder must be outside the project, e.g. one level up.</p></details>`]]}
+};
+const q=new URLSearchParams(location.search);
+let lang=q.get("lang");
+if(!C[lang]){try{lang=localStorage.getItem("als-lang")}catch(e){}if(!C[lang])lang=(navigator.language||"").toLowerCase().startsWith("de")?"de":"en"}
+function render(){
+  const d=C[lang];document.documentElement.lang=lang;document.title=`Ableton Set Cleaner – ${d.title}`;
+  document.querySelectorAll("[data-t]").forEach(e=>e.textContent=d[e.dataset.t]);
+  document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
+  document.getElementById("toc").innerHTML=d.s.map(([id,h])=>`<a href="#${id}" data-id="${id}">${h}</a>`).join("");
+  document.getElementById("content").innerHTML=d.s.map(([id,h,b])=>`<section id="${id}"><h2>${h}</h2>${b}</section>`).join("");
+  spy();
+}
+function setLang(l,notify){if(!C[l]||l===lang&&!notify)return;lang=l;try{localStorage.setItem("als-lang",l)}catch(e){}render();
+  if(notify&&parent!==window)parent.postMessage({type:"als-lang",lang:l},"*")}
+document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>setLang(b.dataset.lang,true));
+// Einbettung: Sprache + Sprungziel vom Parent per postMessage, Sektion per #hash
+window.addEventListener("message",e=>{const m=e.data||{};if(m.type==="als-lang")setLang(m.lang);if(m.type==="als-goto")go(m.id)});
+const go=id=>{const s=id&&document.getElementById(id);if(s)s.scrollIntoView()};
+function spy(){let cur="";if(scrollY<10)cur="intro";else for(const s of document.querySelectorAll("section"))if(s.getBoundingClientRect().top<80)cur=s.id;
+  document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.dataset.id===(cur||"intro")))}
+addEventListener("scroll",spy,{passive:true});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&parent!==window)parent.postMessage({type:"als-close"},"*")});
+if(parent!==window)document.querySelector("header").style.paddingRight="40px";
+render();go(location.hash.slice(1));addEventListener("load",spy);
+<\/script></body></html>
+</script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* ---------------------------------------------------------------- i18n */
+const L={
+de:{by:"Entwickelt von Thorsten Banning",manual:"Handbuch",projFolder:"Projektordner",pick:"Projektordner wählen…",noFolder:"Kein Ordner gewählt",analyze:"Analysieren",
+  sumTitle:'Dateitypen – vorher / nach Bereinigung <span class="mut">(Prognose)</span>',clean:"Bereinigen",namePh:"Name des neuen Sets",
+  copyBtn:"Bereinigtes neues Projekt erstellen…",inplaceBtn:"Im Ordner aufräumen (Quarantäne)…",
+  cleanNote:"„Neues Projekt“: Du wählst einen Zielordner, darin entsteht „&lt;Name&gt; Project“ nur mit den benötigten Dateien. Das Original bleibt unverändert.<br>„Aufräumen“: Du wählst einen Ordner <b>außerhalb</b> des Projekts (z.B. den übergeordneten), dorthin werden ungenutzte Dateien verschoben – nichts wird gelöscht.<br>Externe Dateien kann der Browser nicht lesen – sie bleiben extern referenziert.",
+  cancel:"Abbrechen",result:"Ergebnis",reset:"Neuen Vorgang starten",error:"Fehler: ",noext:"(ohne)",
+  reading:n=>`Lese Ordner… ${n} Dateien`,readingDir:"Lese Ordner…",nFiles:n=>`${n} Dateien`,
+  noAls:"Keine .als-Datei im gewählten Ordner gefunden. Bitte den Projektordner wählen.",analyzing:"Analysiere…",
+  xmlErr:"Live Set konnte nicht gelesen werden (XML-Fehler).",cleanSuffix:" clean",
+  folderSize:"Ordnergröße",savings:"Ersparnis",before:"vorher",after:"nachher",
+  thType:"Typ",thCntB:"Anz. vorher",thSizeB:"Größe vorher",thCntA:"Anz. nachher",thSizeA:"Größe nachher",total:"Gesamt",
+  usedIn:"Im Projekt verwendet",unused:"Ungenutzt",unusedIn:"Ungenutzt im Projektordner",external:"Extern verwendet",notCheckable:"nicht prüfbar",missing:"Fehlend",
+  noWrite:"Schreibzugriff wurde nicht erlaubt.",cancelled:"Abgebrochen",prepare:"Vorbereiten",fileOf:(a,b)=>`Datei ${a} von ${b}`,of:(a,b)=>`${a} von ${b}`,
+  remaining:(r,t)=>`${r}/s · noch ~${t}`,cancelling:"Breche ab…",sizeMismatch:n=>`Größe stimmt nach dem Kopieren nicht: ${n}`,
+  targetInside:"Der Zielordner darf nicht im Projektordner liegen.",targetExists:n=>`Zielordner existiert bereits und ist nicht leer: ${n}`,
+  copying:"Kopieren",saveSet:"Set speichern",done:"Fertig",newProj:"Neues Projekt: ",newSet:"Neues Set:     ",
+  copySum:(a,b)=>`${a} Referenzen übernommen, ${b} ungenutzte Dateien weggelassen.`,
+  warnMissing:n=>`WARNUNG: ${n} referenzierte Dateien fehlen (siehe Analyse).`,noteExt:n=>`Hinweis: ${n} externe Dateien bleiben extern referenziert.`,
+  duration:"Dauer: ",errLabel:"Fehler",
+  copyCancelled:(a,b,p)=>`ABGEBROCHEN nach ${a} von ${b} Dateien.\nUnvollständiger Zielordner (kann gelöscht werden):\n  ${p}\nDas Original ist unverändert.`,
+  confirmMove:(n,s,r,p)=>`${n} ungenutzte Dateien (${s}) aus „${r}“ nach\n„${p} _unused_…“ verschieben?`,
+  quarInside:"Der Quarantäne-Ordner darf nicht im Projektordner liegen.",moving:"Verschieben",tidy:"Aufräumen",rescan:"Ordner neu einlesen",
+  movedTo:(n,s,p)=>`${n} Dateien (${s}) verschoben nach:\n  ${p}`,
+  moveCancelled:(a,b,s,p)=>`ABGEBROCHEN: ${a} von ${b} Dateien (${s}) wurden bereits verschoben nach:\n  ${p}\nNichts ist verloren – die Analyse unten zeigt den aktuellen Stand.`,
+  fsNote:"Dieser Browser unterstützt nur die Analyse. Zum Bereinigen bitte Chrome oder Edge verwenden."},
+en:{by:"Developed by Thorsten Banning",manual:"Manual",projFolder:"Project folder",pick:"Choose project folder…",noFolder:"No folder selected",analyze:"Analyze",
+  sumTitle:'File types – before / after cleanup <span class="mut">(forecast)</span>',clean:"Clean up",namePh:"Name of the new set",
+  copyBtn:"Create clean new project…",inplaceBtn:"Clean up in place (quarantine)…",
+  cleanNote:"“New project”: you choose a target folder; a “&lt;Name&gt; Project” containing only the required files is created there. The original stays unchanged.<br>“Clean up”: you choose a folder <b>outside</b> the project (e.g. the parent folder); unused files are moved there – nothing is deleted.<br>The browser cannot read external files – they remain referenced externally.",
+  cancel:"Cancel",result:"Result",reset:"Start new run",error:"Error: ",noext:"(none)",
+  reading:n=>`Reading folder… ${n} files`,readingDir:"Reading folder…",nFiles:n=>`${n} files`,
+  noAls:"No .als file found in the selected folder. Please choose the project folder.",analyzing:"Analyzing…",
+  xmlErr:"Could not read the Live Set (XML error).",cleanSuffix:" clean",
+  folderSize:"Folder size",savings:"Savings",before:"before",after:"after",
+  thType:"Type",thCntB:"Count before",thSizeB:"Size before",thCntA:"Count after",thSizeA:"Size after",total:"Total",
+  usedIn:"Used in project",unused:"Unused",unusedIn:"Unused in project folder",external:"Used externally",notCheckable:"not verifiable",missing:"Missing",
+  noWrite:"Write access was not granted.",cancelled:"Cancelled",prepare:"Preparing",fileOf:(a,b)=>`File ${a} of ${b}`,of:(a,b)=>`${a} of ${b}`,
+  remaining:(r,t)=>`${r}/s · ~${t} left`,cancelling:"Cancelling…",sizeMismatch:n=>`Size mismatch after copying: ${n}`,
+  targetInside:"The target folder must not be inside the project folder.",targetExists:n=>`Target folder already exists and is not empty: ${n}`,
+  copying:"Copying",saveSet:"Saving set",done:"Done",newProj:"New project: ",newSet:"New set:     ",
+  copySum:(a,b)=>`${a} references kept, ${b} unused files left out.`,
+  warnMissing:n=>`WARNING: ${n} referenced files are missing (see analysis).`,noteExt:n=>`Note: ${n} external files remain referenced externally.`,
+  duration:"Duration: ",errLabel:"Error",
+  copyCancelled:(a,b,p)=>`CANCELLED after ${a} of ${b} files.\nIncomplete target folder (can be deleted):\n  ${p}\nThe original is unchanged.`,
+  confirmMove:(n,s,r,p)=>`Move ${n} unused files (${s}) from “${r}” to\n“${p} _unused_…”?`,
+  quarInside:"The quarantine folder must not be inside the project folder.",moving:"Moving",tidy:"Tidying up",rescan:"Rescanning folder",
+  movedTo:(n,s,p)=>`${n} files (${s}) moved to:\n  ${p}`,
+  moveCancelled:(a,b,s,p)=>`CANCELLED: ${a} of ${b} files (${s}) have already been moved to:\n  ${p}\nNothing is lost – the analysis below shows the current state.`,
+  fsNote:"This browser only supports analysis. Please use Chrome or Edge for cleaning up."}
+};
+let lang="de";try{lang=localStorage.getItem("als-lang")||((navigator.language||"").toLowerCase().startsWith("de")?"de":"en")}catch(e){}
+if(!L[lang])lang="de";
+const tx=(k,...a)=>{const v=L[lang][k]??L.de[k];return typeof v==="function"?v(...a):v};
+let lastOutSum=null;
+function applyLang(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll("[data-i18n]").forEach(e=>e.textContent=tx(e.dataset.i18n));
+  document.querySelectorAll("[data-i18n-html]").forEach(e=>e.innerHTML=tx(e.dataset.i18nHtml));
+  document.querySelectorAll("[data-i18n-ph]").forEach(e=>e.placeholder=tx(e.dataset.i18nPh));
+  document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
+  $("#rootName").textContent=S.rootName?`${S.rootName} · ${tx("nFiles",S.files.size)}`:tx("noFolder");
+  $("#fsNote").textContent=FS?"":tx("fsNote");
+  if(S.A)render(S.A,S.A.sizeOfKey);
+  if(lastOutSum)$("#outSum").innerHTML=sumTable(lastOutSum);
+  const hf=$("#helpFrame");if(hf.srcdoc)hf.contentWindow.postMessage({type:"als-lang",lang},"*");
+}
+document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;try{localStorage.setItem("als-lang",lang)}catch(e){}applyLang()});
+/* Handbuch (iFrame) */
+function openHelp(id){const hf=$("#helpFrame");
+  if(!hf.srcdoc){hf.onload=()=>{hf.contentWindow.postMessage({type:"als-lang",lang},"*");if(id)hf.contentWindow.postMessage({type:"als-goto",id},"*")};
+    hf.srcdoc=$("#helpSrc").textContent.replace(/<\\\/script/g,"</script")}
+  else if(id)hf.contentWindow.postMessage({type:"als-goto",id},"*");
+  $("#help").classList.remove("hide");hf.focus()}
+const closeHelp=()=>$("#help").classList.add("hide");
+$("#bHelp").onclick=()=>openHelp();$("#bHelpX").onclick=closeHelp;
+$("#help").onclick=e=>{if(e.target.id==="help")closeHelp()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeHelp()});
+window.addEventListener("message",e=>{if(e.source!==$("#helpFrame").contentWindow)return;const m=e.data||{};
+  if(m.type==="als-close")closeHelp();
+  if(m.type==="als-lang"&&L[m.lang]&&m.lang!==lang){lang=m.lang;try{localStorage.setItem("als-lang",lang)}catch(x){}applyLang()}});
+
+const PROJECT_INFO="ableton project info";
+const FS=typeof window.showDirectoryPicker==="function";
+function human(n){const u=["B","KB","MB","GB","TB"];let i=0;while(n>=1024&&i<4){n/=1024;i++}return i?n.toFixed(1)+" "+u[i]:n+" B"}
+function err(e){$("#err").textContent=e?(tx("error")+(e.message||e)):"";if(e)console.error(e)}
+function status(s){$("#status").textContent=s||""}
+function busy(on){document.querySelectorAll("button:not(#bCancel):not(#bHelp):not(#bHelpX)").forEach(b=>b.disabled=on||(!FS&&b.dataset.fs==="1"))}
+const ext=n=>{const b=n.split("/").pop(),i=b.lastIndexOf(".");return i>0?b.slice(i).toLowerCase():""};
+const dirOf=r=>r.includes("/")?r.slice(0,r.lastIndexOf("/")):"";
+const baseOf=r=>r.split("/").pop();
+
+/* ---------------------------------------------------------------- Scan */
+let S={root:null,rootName:"",files:new Map(),dirs:new Map(),A:null};
+// files: key(lower rel) -> {rel,size,handle?,file?,dir?(parent handle)}; dirs: key -> {rel,handle?}
+
+async function scanHandle(root){
+  const files=new Map(),dirs=new Map();let n=0;
+  async function walk(dh,prefix){
+    for await(const [name,h] of dh.entries()){
+      const rel=prefix?prefix+"/"+name:name;
+      if(h.kind==="directory"){dirs.set(rel.toLowerCase(),{rel,handle:h,parent:dh});await walk(h,rel)}
+      else{const f=await h.getFile();files.set(rel.toLowerCase(),{rel,size:f.size,handle:h,dir:dh});if(++n%200===0)status(tx("reading",n))}
+    }}
+  await walk(root,"");return {files,dirs};
+}
+function scanFileList(list){
+  const files=new Map(),dirs=new Map();
+  for(const f of list){const parts=f.webkitRelativePath.split("/").slice(1),rel=parts.join("/");
+    files.set(rel.toLowerCase(),{rel,size:f.size,file:f});
+    for(let i=1;i<parts.length;i++){const d=parts.slice(0,i).join("/");dirs.set(d.toLowerCase(),{rel:d})}}
+  return {files,dirs};
+}
+async function load(scan,rootName,root){
+  S={root,rootName,files:scan.files,dirs:scan.dirs,A:null};
+  $("#rootName").textContent=`${rootName} · ${tx("nFiles",scan.files.size)}`;
+  const als=[...S.files.values()].filter(f=>ext(f.rel)===".als"&&!/(^|\/)backup\//i.test(f.rel)).sort((a,b)=>a.rel.split("/").length-b.rel.split("/").length||a.rel.localeCompare(b.rel));
+  $("#alsSel").innerHTML=als.map(f=>`<option value="${esc(f.rel)}">${esc(f.rel)}</option>`).join("");
+  $("#alsRow").classList.toggle("hide",!als.length);status("");
+  if(!als.length){$("#res").classList.add("hide");return err(tx("noAls"))}
+  await analyze();
+}
+const fileOf=e=>e.file||e.handle.getFile();
+
+/* ---------------------------------------------------------------- ALS parsing */
+async function gunzip(buf){
+  const u=new Uint8Array(buf);
+  if(u[0]!==0x1f||u[1]!==0x8b)return buf;
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+async function gzip(text){return new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).blob()}
+const kid=(el,tag)=>{for(const c of el.children)if(c.tagName===tag)return c;return null};
+const val=(el,tag)=>{const c=kid(el,tag);return c?c.getAttribute("Value"):null};
+
+function relativeOf(fr){
+  const rp=kid(fr,"RelativePath");if(!rp)return null;
+  if(rp.hasAttribute("Value"))return rp.getAttribute("Value")||null;          // Live 11/12
+  const dirs=[...rp.children].filter(c=>c.tagName==="RelativePathElement").map(e=>e.getAttribute("Dir")||"..");
+  const name=val(fr,"Name");return name?[...dirs,name].join("/"):null;         // Live 9/10
+}
+function absoluteOf(fr){
+  const p=val(fr,"Path");if(p)return p;                                       // Live 11/12
+  const name=val(fr,"Name"),data=kid(fr,"Data");
+  if(data&&data.textContent.trim()){                                          // Live 9/10 Windows: UTF-16 hex
+    try{const hex=data.textContent.replace(/\s+/g,""),b=new Uint8Array(hex.length/2);
+      for(let i=0;i<b.length;i++)b[i]=parseInt(hex.substr(i*2,2),16);
+      const s=new TextDecoder("utf-16le").decode(b).replace(/\0+$/,"");
+      if(s&&(s.includes(":")||s.startsWith("\\")||s.startsWith("/")))return s}catch(e){}
+  }
+  const sh=kid(fr,"SearchHint"),hint=sh&&kid(sh,"PathHint");
+  if(hint&&name){const d=[...hint.children].filter(c=>c.tagName==="RelativePathElement").map(e=>e.getAttribute("Dir")||"");
+    if(d.length)return(/^[A-Za-z]:$/.test(d[0])?d[0]+"\\":"/"+d[0]+"/")+[...d.slice(1),name].join("\\")}
+  return null;
+}
+function normJoin(base,rel){
+  const st=[];for(const p of[...(base?base.split("/"):[]),...rel.split(/[\\/]/)]){
+    if(p===""||p===".")continue;if(p===".."){if(!st.length)return null;st.pop()}else st.push(p)}
+  return st.join("/");
+}
+const exists=k=>S.files.has(k)||S.dirs.has(k);
+
+function resolveRef(fr,alsDir){
+  const rel=relativeOf(fr),ab=absoluteOf(fr),c=[];
+  if(rel){c.push(normJoin("",rel),normJoin(alsDir,rel))}
+  if(ab){const parts=ab.split(/[\\/]/),rn=S.rootName.toLowerCase();       // absoluten Pfad auf Projektordner abbilden
+    for(let i=parts.length-2;i>=0;i--)if(parts[i].toLowerCase()===rn){c.push(parts.slice(i+1).join("/"));break}}
+  for(const r of c)if(r!==null&&r!==""&&exists(r.toLowerCase()))return{kind:"inside",key:r.toLowerCase()};
+  if(ab&&!c.slice(rel?2:0).length)return{kind:"external",key:"abs:"+ab.toLowerCase(),path:ab};
+  const first=c.find(r=>r);if(first)return{kind:"missing",key:"rel:"+first.toLowerCase(),path:first};
+  return ab?{kind:"missing",key:"abs:"+ab.toLowerCase(),path:ab}:null;
+}
+
+async function analyze(){
+  err();busy(true);status(tx("analyzing"));
+  try{
+    const alsRel=$("#alsSel").value,alsE=S.files.get(alsRel.toLowerCase());
+    const text=new TextDecoder().decode(await gunzip(await (await fileOf(alsE)).arrayBuffer()));
+    const xml=new DOMParser().parseFromString(text,"application/xml");
+    if(xml.querySelector("parsererror"))throw new Error(tx("xmlErr"));
+    const alsDir=dirOf(alsRel),refs=[],uniq=new Map();
+    for(const fr of xml.getElementsByTagName("FileRef")){const r=resolveRef(fr,alsDir);if(!r)continue;refs.push({el:fr,...r});if(!uniq.has(r.key))uniq.set(r.key,r)}
+    const U=[...uniq.values()];
+    const inside=U.filter(r=>r.kind==="inside").map(r=>r.key).sort();
+    const external=U.filter(r=>r.kind==="external").map(r=>r.path).sort();
+    const missing=U.filter(r=>r.kind==="missing").map(r=>r.path).sort();
+    const needed=new Set([alsRel.toLowerCase()]);
+    for(const k of inside){
+      if(S.dirs.has(k)){for(const f of S.files.keys())if(f.startsWith(k+"/"))needed.add(f)}
+      else{needed.add(k);needed.add(k+".asd")}
+    }
+    const unused=[...S.files.keys()].filter(k=>!needed.has(k)&&!k.startsWith(PROJECT_INFO+"/")).sort();
+    const sizeOfKey=k=>S.files.has(k)?S.files.get(k).size:[...S.files.entries()].filter(([f])=>f.startsWith(k+"/")).reduce((s,[,e])=>s+e.size,0);
+    const before=[...S.files.values()].map(e=>[e.rel,e.size]),un=new Set(unused);
+    S.A={alsRel,xml,refs,inside,external,missing,needed,unused,sizeOfKey,
+      summary:summaryData(before,[...S.files.entries()].filter(([k])=>!un.has(k)).map(([,e])=>[e.rel,e.size]))};
+    render(S.A,sizeOfKey);
+    if(!$("#name").value||$("#name").dataset.for!==alsRel){$("#name").value=baseOf(alsRel).replace(/\.als$/i,"")+tx("cleanSuffix");$("#name").dataset.for=alsRel}
+    status("");
+  }catch(e){err(e);status("")}finally{busy(false)}
+}
+
+/* ---------------------------------------------------------------- Summary */
+function summaryData(before,after){
+  const st=l=>{const m=new Map();for(const[r,s]of l){const e=ext(r),[c,b]=m.get(e)||[0,0];m.set(e,[c+1,b+s])}return m};
+  const b=st(before),a=st(after),keys=[...new Set([...b.keys(),...a.keys()])];
+  const g=(m,k)=>m.get(k)||[0,0];
+  const rows=keys.map(k=>({ext:k,count_before:g(b,k)[0],size_before:g(b,k)[1],count_after:g(a,k)[0],size_after:g(a,k)[1]}))
+    .sort((x,y)=>Math.max(y.size_before,y.size_after)-Math.max(x.size_before,x.size_after));
+  const total={};for(const f of["count_before","size_before","count_after","size_after"])total[f]=rows.reduce((s,r)=>s+r[f],0);
+  return{rows,total};
+}
+function sumTable(s){
+  const t=s.total,max=Math.max(1,...s.rows.map(r=>Math.max(r.size_before,r.size_after))),w=v=>(v/max*100).toFixed(1)+"%";
+  const row=(r,cls)=>`<tr class="${cls||""}"><td>${esc(r.ext||tx("noext"))}</td><td class="n">${r.count_before}</td><td class="n">${human(r.size_before)}</td><td class="n">${r.count_after}</td><td class="n">${human(r.size_after)}</td>`+
+    (cls?"<td></td>":`<td class="bar"><span class="b" style="width:${w(r.size_before)}"></span><span class="b a" style="width:${w(r.size_after)}"></span></td>`)+"</tr>";
+  const d=t.size_before-t.size_after,p=t.size_before?(d/t.size_before*100).toFixed(1):"0.0";
+  return `<p style="margin:0 0 8px"><b>${tx("folderSize")}: ${human(t.size_before)} → ${human(t.size_after)}</b> <span class="mut">· ${tx("savings")} ${human(Math.max(d,0))} (${p} %)</span>
+    <span class="legend"><i style="background:var(--bar)"></i>${tx("before")}<i style="background:var(--acc2)"></i>${tx("after")}</span></p>
+    <table><thead><tr><th>${tx("thType")}</th><th class="n">${tx("thCntB")}</th><th class="n">${tx("thSizeB")}</th><th class="n">${tx("thCntA")}</th><th class="n">${tx("thSizeA")}</th><th></th></tr></thead>
+    <tbody>${s.rows.map(r=>row(r)).join("")}${row(Object.assign({ext:tx("total")},t),"tot")}</tbody></table>`;
+}
+function list(title,items,fmt){return items.length?`<details><summary>${title} (${items.length})</summary><ul>${items.map(i=>"<li>"+fmt(i)+"</li>").join("")}</ul></details>`:""}
+function render(A,sizeOfKey){
+  const t=A.summary.total,dd=t.size_before-t.size_after,sum=ks=>ks.reduce((s,k)=>s+sizeOfKey(k),0);
+  $("#tiles").innerHTML=`
+    <div class="tile big"><span class="mut">${tx("projFolder")}</span><b>${human(t.size_before)} → <span class="ok">${human(t.size_after)}</span></b><span class="mut">${tx("savings")} ${human(dd)} (${t.size_before?(dd/t.size_before*100).toFixed(1):0} %)</span></div>
+    <div class="tile"><span class="mut">${tx("usedIn")}</span><b>${A.inside.length}</b><span class="mut">${human(sum(A.inside))}</span></div>
+    <div class="tile"><span class="mut">${tx("unused")}</span><b>${A.unused.length}</b><span class="mut">${human(sum(A.unused))}</span></div>
+    <div class="tile"><span class="mut">${tx("external")}</span><b>${A.external.length}</b><span class="mut">${tx("notCheckable")}</span></div>
+    <div class="tile"><span class="mut">${tx("missing")}</span><b class="${A.missing.length?"bad":"ok"}">${A.missing.length}</b><span class="mut">${A.refs.length} FileRefs</span></div>`;
+  $("#sum").innerHTML=sumTable(A.summary);
+  const f=k=>esc(S.files.get(k)?.rel||S.dirs.get(k)?.rel||k)+" <span>"+human(sizeOfKey(k))+"</span>";
+  $("#lists").innerHTML=`<p class="mut" style="margin:0 0 6px">${esc(S.rootName)} / ${esc(A.alsRel)}</p>`+
+    list(tx("usedIn"),A.inside,f)+list(tx("unusedIn"),A.unused,f)+
+    list(tx("external"),A.external,esc)+list(tx("missing"),A.missing,esc);
+  $("#bInplace").disabled=!A.unused.length;
+  $("#res").classList.remove("hide");
+}
+
+/* ---------------------------------------------------------------- Actions */
+async function ensureRW(h){if(h.requestPermission&&await h.requestPermission({mode:"readwrite"})!=="granted")throw new Error(tx("noWrite"))}
+async function mkdirs(base,rel){let d=base;for(const p of rel.split("/").filter(Boolean))d=await d.getDirectoryHandle(p,{create:true});return d}
+/* Fortschritt: Bytes-genau, Dateien 0-97 %, danach Set/Aufräumen */
+class Cancelled extends Error{constructor(){super(tx("cancelled"));this.name="Cancelled"}}
+const P={
+  begin(){Object.assign(this,{on:true,cancel:false,phaseName:tx("prepare"),pct:0,done:0,total:0,fd:0,ft:0,cur:"",t0:performance.now(),last:0});
+    $("#out").classList.add("hide");$("#bCancel").disabled=false;$("#pFill").style.width="0";
+    $("#prog").classList.remove("hide");$("#prog").scrollIntoView({behavior:"smooth",block:"center"});this.draw(true)},
+  start(phase,total,files){Object.assign(this,{phaseName:phase,total,ft:files,done:0,fd:0,t0:performance.now()});this.draw(true)},
+  check(){if(this.cancel)throw new Cancelled()},
+  add(n){this.check();this.done+=n;if(this.total)this.pct=Math.max(this.pct,97*this.done/this.total);this.draw()},
+  file(rel){this.check();this.cur=rel;this.draw(true)},
+  fileDone(){this.fd++;if(!this.total)this.pct=Math.max(this.pct,97*this.fd/Math.max(this.ft,1));this.draw()},
+  phase(name,pct){this.phaseName=name;this.cur="";this.pct=Math.max(this.pct,pct);this.draw(true)},
+  end(label){this.on=false;$("#pPhase").textContent=label;$("#bCancel").disabled=true},
+  draw(force){const now=performance.now();if(!force&&now-this.last<100)return;this.last=now;
+    $("#pPhase").textContent=this.phaseName+(this.pct<100?"…":"");$("#pFill").style.width=this.pct.toFixed(1)+"%";$("#pPct").textContent=Math.floor(this.pct)+" %";
+    const sec=(now-this.t0)/1000,info=[];
+    if(this.ft)info.push(tx("fileOf",Math.min(this.fd+1,this.ft),this.ft));
+    if(this.total){info.push(tx("of",human(this.done),human(this.total)));
+      const rate=this.done/Math.max(sec,.001);if(sec>1&&rate>0&&this.done<this.total)info.push(tx("remaining",human(rate),fmtT((this.total-this.done)/rate)))}
+    $("#pInfo").textContent=info.join(" · ");$("#pFile").textContent=this.cur}
+};
+const fmtT=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+window.addEventListener("beforeunload",e=>{if(P.on){e.preventDefault();e.returnValue=""}});
+$("#bCancel").onclick=()=>{P.cancel=true;$("#bCancel").disabled=true;$("#pPhase").textContent=tx("cancelling")};
+
+/* Datei blockweise kopieren (Fortschritt pro Block) und Größe prüfen */
+async function copyFile(src,dir,name){
+  const fh=await dir.getFileHandle(name,{create:true}),w=await fh.createWritable(),rd=src.stream().getReader();
+  try{for(;;){const{done,value}=await rd.read();if(done)break;P.check();await w.write(value);P.add(value.byteLength)}await w.close()}
+  catch(e){try{await w.abort()}catch(x){}try{await dir.removeEntry(name)}catch(x){}throw e}
+  if((await fh.getFile()).size!==src.size)throw new Error(tx("sizeMismatch",name));
+}
+async function writeFile(dir,name,data){const fh=await dir.getFileHandle(name,{create:true}),w=await fh.createWritable();await w.write(data);await w.close()}
+async function isInside(outer,inner){return outer.resolve?(await outer.resolve(inner))!==null:false}
+const ts=()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`};
+function showResult(log,summary){lastOutSum=summary||null;$("#log").textContent=log;$("#outSum").innerHTML=summary?sumTable(summary):"";$("#out").classList.remove("hide");$("#out").scrollIntoView({behavior:"smooth"})}
+
+async function cleanCopy(){
+  const A=S.A,name=($("#name").value.trim()||baseOf(A.alsRel).replace(/\.als$/i,"")).replace(/[\\/:*?"<>|]/g,"_");
+  let target;try{target=await showDirectoryPicker({id:"als-target",mode:"readwrite"})}catch(e){return}
+  err();busy(true);P.begin();let outName="",copied=0;
+  try{
+    await ensureRW(target);
+    if(await isInside(S.root,target))throw new Error(tx("targetInside"));
+    outName=`${name} Project`;
+    try{const ex=await target.getDirectoryHandle(outName);for await(const _ of ex.keys())throw new Error(tx("targetExists",outName))}catch(e){if(e.name!=="NotFoundError"&&e.name!=="TypeMismatchError")throw e}
+    const out=await target.getDirectoryHandle(outName,{create:true});
+    const keys=[...S.files.keys()].filter(k=>k!==A.alsRel.toLowerCase()&&(A.needed.has(k)||k.startsWith(PROJECT_INFO+"/")));
+    const written=[];
+    P.start(tx("copying"),keys.reduce((s,k)=>s+S.files.get(k).size,0),keys.length);
+    for(const k of keys){const e=S.files.get(k);P.file(e.rel);
+      await copyFile(await fileOf(e),await mkdirs(out,dirOf(e.rel)),baseOf(e.rel));written.push([e.rel,e.size]);copied++;P.fileDone()}
+    P.phase(tx("saveSet"),97);
+    // Referenzen auf Projekt-relativ setzen
+    for(const r of A.refs){if(r.kind!=="inside")continue;const fr=r.el,rp=kid(fr,"RelativePath"),rel=S.files.get(r.key)?.rel||S.dirs.get(r.key)?.rel;
+      if(!rp||!rel)continue;
+      for(const[t,v]of[["RelativePathType","3"],["HasRelativePath","true"]]){const c=kid(fr,t);if(c)c.setAttribute("Value",v)}
+      if(rp.hasAttribute("Value"))rp.setAttribute("Value",rel);
+      else{while(rp.firstChild)rp.removeChild(rp.firstChild);
+        for(const d of rel.split("/").slice(0,-1)){const el=A.xml.createElement("RelativePathElement");el.setAttribute("Dir",d);rp.appendChild(el)}}
+    }
+    const xmlText='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(A.xml.documentElement);
+    const blob=await gzip(xmlText),alsName=`${name}.als`,alsDirRel=dirOf(A.alsRel);
+    await writeFile(await mkdirs(out,alsDirRel),alsName,blob);written.push([(alsDirRel?alsDirRel+"/":"")+alsName,blob.size]);
+    P.phase(tx("done"),100);P.end(tx("done"));$("#prog").classList.add("hide");
+    const secs=(performance.now()-P.t0)/1000;
+    const log=[tx("newProj")+`${target.name} / ${outName}`,tx("newSet")+((alsDirRel?alsDirRel+"/":"")+alsName),
+      tx("copySum",A.inside.length,A.unused.length)];
+    if(A.missing.length)log.push(tx("warnMissing",A.missing.length));
+    if(A.external.length)log.push(tx("noteExt",A.external.length));
+    log.push("",tx("duration")+fmtT(secs));
+    showResult(log.join("\n"),summaryData([...S.files.values()].map(e=>[e.rel,e.size]),written));
+  }catch(e){
+    if(e.name==="Cancelled"){P.end(tx("cancelled"));showResult(tx("copyCancelled",copied,P.ft,`${target.name} / ${outName}`))}
+    else{P.end(tx("errLabel"));err(e)}
+  }finally{P.on=false;status("");busy(false)}
+  await analyze();                         // XML im Speicher wurde ggf. verändert -> neu einlesen
+}
+
+async function cleanInPlace(){
+  const A=S.A,n=A.unused.length,size=human(A.unused.reduce((s,k)=>s+S.files.get(k).size,0));
+  if(!n)return;
+  let target;try{target=await showDirectoryPicker({id:"als-quarantine",mode:"readwrite"})}catch(e){return}
+  if(!confirm(tx("confirmMove",n,size,S.rootName,`${target.name} / ${S.rootName}`)))return;
+  err();busy(true);P.begin();let moved=0,total=0,qName="";const sel=A.alsRel;
+  try{
+    await ensureRW(S.root);await ensureRW(target);
+    if(await isInside(S.root,target))throw new Error(tx("quarInside"));
+    const before=[...S.files.values()].map(e=>[e.rel,e.size]);
+    qName=`${S.rootName} _unused_${ts()}`;const q=await target.getDirectoryHandle(qName,{create:true});
+    P.start(tx("moving"),A.unused.reduce((s,k)=>s+S.files.get(k).size,0),n);
+    for(const k of A.unused){const e=S.files.get(k);P.file(e.rel);
+      const dst=await mkdirs(q,dirOf(e.rel));let ok=false;
+      if(e.handle.move){try{await e.handle.move(dst);ok=true;P.add(e.size)}catch(x){if(x.name==="Cancelled")throw x}}   // gleiches Laufwerk: sofort
+      if(!ok){await copyFile(await e.handle.getFile(),dst,baseOf(e.rel));await e.dir.removeEntry(baseOf(e.rel))}
+      total+=e.size;moved++;P.fileDone()}
+    P.phase(tx("tidy"),97);
+    // leere Ordner entfernen (tiefste zuerst)
+    for(const d of[...S.dirs.values()].sort((a,b)=>b.rel.split("/").length-a.rel.split("/").length)){
+      let empty=true;for await(const _ of d.handle.keys()){empty=false;break}
+      if(empty)try{await d.parent.removeEntry(baseOf(d.rel))}catch(x){}
+    }
+    P.phase(tx("rescan"),99);
+    const scan=await scanHandle(S.root),secs=(performance.now()-P.t0)/1000;
+    P.phase(tx("done"),100);P.end(tx("done"));$("#prog").classList.add("hide");
+    showResult(tx("movedTo",n,human(total),`${target.name} / ${qName}`)+"\n\n"+tx("duration")+fmtT(secs),
+      summaryData(before,[...scan.files.values()].map(e=>[e.rel,e.size])));
+    await load(scan,S.rootName,S.root);$("#alsSel").value=sel;return;
+  }catch(e){
+    if(e.name==="Cancelled"){P.end(tx("cancelled"));showResult(tx("moveCancelled",moved,n,human(total),`${target.name} / ${qName}`))}
+    else{P.end(tx("errLabel"));err(e)}
+  }finally{P.on=false;status("");busy(false)}
+  try{await load(await scanHandle(S.root),S.rootName,S.root);$("#alsSel").value=sel}catch(e){err(e)}
+}
+
+/* ---------------------------------------------------------------- UI */
+$("#bPick").onclick=async()=>{
+  if(!FS)return $("#fallback").click();
+  let h;try{h=await showDirectoryPicker({id:"als-project",mode:"readwrite"})}catch(e){return}
+  err();busy(true);
+  try{status(tx("readingDir"));await load(await scanHandle(h),h.name,h)}catch(e){err(e)}finally{busy(false);status("")}
+};
+$("#fallback").onchange=async e=>{const l=[...e.target.files];if(!l.length)return;err();
+  await load(scanFileList(l),l[0].webkitRelativePath.split("/")[0],null)};
+$("#bAnalyze").onclick=analyze;$("#alsSel").onchange=analyze;
+function reset(){
+  S={root:null,rootName:"",files:new Map(),dirs:new Map(),A:null};
+  ["#res","#out","#alsRow","#prog"].forEach(s=>$(s).classList.add("hide"));
+  $("#alsSel").innerHTML="";lastOutSum=null;$("#name").value="";delete $("#name").dataset.for;$("#fallback").value="";
+  $("#rootName").textContent=tx("noFolder");err();status();window.scrollTo({top:0,behavior:"smooth"});
+}
+$("#bReset").onclick=reset;
+$("#bCopy").onclick=cleanCopy;$("#bInplace").onclick=cleanInPlace;
+$("#bCopy").dataset.fs=$("#bInplace").dataset.fs="1";
+applyLang();
+busy(false);
+</script></body></html>
