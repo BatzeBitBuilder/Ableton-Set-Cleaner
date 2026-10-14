@@ -1,6 +1,6 @@
 # Ableton Set Cleaner
 
-Analysiert ein Ableton Live Set (`.als`) und bereinigt den zugehörigen Projektordner – nur die tatsächlich benötigten Dateien bleiben übrig.
+Analyzes an Ableton Live set (.als) and cleans up the associated project folder—only the files that are actually needed remain.
 
 ## Web-App
 
