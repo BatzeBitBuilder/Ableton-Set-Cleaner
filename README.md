@@ -6,7 +6,7 @@ Analyzes an Ableton Live set (.als) and cleans up the associated project folder�
 
 **[https://github.com/BatzeBitBuilder/Ableton-Set-Cleaner](https://batzebitbuilder.github.io/Ableton-Set-Cleaner/)**
 
-Läuft komplett lokal im Browser, es werden keine Dateien hochgeladen. Für den Ordnerzugriff wird Chrome oder Edge empfohlen.
+Runs entirely locally in the browser; no files are uploaded. Chrome or Edge is recommended for accessing folders.
 
 ## Windows-Programm
 
